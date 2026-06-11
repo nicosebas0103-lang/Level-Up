@@ -21,7 +21,13 @@ export default function MisReservas() {
       .from('reservaciones')
       .select('*, clases(*)')
       .eq('usuario_id', user.id)
-    setReservas(data || [])
+
+    // Filtrar solo clases futuras
+    const ahora = new Date()
+    const soloFuturas = (data || []).filter(r =>
+      r.clases && new Date(r.clases.fecha_hora) > ahora
+    )
+    setReservas(soloFuturas)
   }
 
   async function cancelar(reservaId) {
@@ -34,7 +40,6 @@ export default function MisReservas() {
     }
   }
 
-  // Construir calendario
   function getDiasDelMes() {
     const primerDia = new Date(anioActual, mesActual, 1).getDay()
     const totalDias = new Date(anioActual, mesActual + 1, 0).getDate()
@@ -106,7 +111,6 @@ export default function MisReservas() {
           border: '1px solid #374151', padding: '24px',
           marginBottom: '24px'
         }}>
-          {/* Navegación mes */}
           <div style={{
             display: 'flex', justifyContent: 'space-between',
             alignItems: 'center', marginBottom: '20px'
@@ -130,7 +134,6 @@ export default function MisReservas() {
             }}>›</button>
           </div>
 
-          {/* Días de la semana */}
           <div style={{
             display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)',
             gap: '4px', marginBottom: '8px'
@@ -145,7 +148,6 @@ export default function MisReservas() {
             ))}
           </div>
 
-          {/* Días del mes */}
           <div style={{
             display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)',
             gap: '4px'
@@ -188,7 +190,6 @@ export default function MisReservas() {
             })}
           </div>
 
-          {/* Leyenda */}
           <div style={{
             display: 'flex', gap: '16px', marginTop: '16px',
             paddingTop: '16px', borderTop: '1px solid #374151'

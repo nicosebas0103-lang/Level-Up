@@ -11,7 +11,8 @@ export default function Clases() {
   }, [])
 
   async function cargarClases() {
-    const { data: clasesData } = await supabase.from('clases').select('*').order('fecha_hora')
+    const ahora = new Date().toISOString()
+    const { data: clasesData } = await supabase.from('clases').select('*').order('fecha_hora').gte('fecha_hora', ahora)
     setClases(clasesData || [])
     const { data: reservasData } = await supabase.from('reservaciones').select('clase_id')
     const conteo = {}
