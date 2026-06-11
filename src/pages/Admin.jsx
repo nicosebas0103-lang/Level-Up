@@ -14,6 +14,9 @@ export default function Admin() {
   const [scanResultado, setScanResultado] = useState('')
   const [scanError, setScanError] = useState('')
   const [escaneando, setEscaneando] = useState(false)
+  const [claseDetalle, setClaseDetalle] = useState(null)
+  const [usuariosClase, setUsuariosClase] = useState([])
+  const [cargandoUsuarios, setCargandoUsuarios] = useState(false)
   const html5QrRef = useRef(null)
 
   useEffect(() => {
@@ -70,6 +73,17 @@ export default function Admin() {
     else { setMensaje('✅ Clase eliminada'); cargarClases() }
   }
 
+  async function verUsuariosClase(clase) {
+    setClaseDetalle(clase)
+    setCargandoUsuarios(true)
+    const { data } = await supabase
+      .from('reservaciones')
+      .select('*')
+      .eq('clase_id', clase.id)
+    setUsuariosClase(data || [])
+    setCargandoUsuarios(false)
+  }
+
   async function iniciarScanner() {
     setScanResultado('')
     setScanError('')
@@ -86,6 +100,24 @@ export default function Admin() {
           setEscaneando(false)
           try {
             const datos = JSON.parse(decodedText)
+
+            // Verificar si ya asistió hoy
+            const hoy = new Date()
+            const inicioDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).toISOString()
+            const finDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + 1).toISOString()
+
+            const { data: yaAsistio } = await supabase
+              .from('asistencias')
+              .select('*')
+              .eq('usuario_id', datos.usuario_id)
+              .gte('fecha', inicioDia)
+              .lt('fecha', finDia)
+
+            if (yaAsistio && yaAsistio.length > 0) {
+              setScanError(`⚠️ ${datos.email} ya registró asistencia hoy`)
+              return
+            }
+
             const { error } = await supabase.from('asistencias').insert({
               usuario_id: datos.usuario_id,
               email: datos.email
@@ -284,19 +316,83 @@ export default function Admin() {
                 <p style={{ marginTop: '16px', padding: '12px', borderRadius: '8px', background: mensaje.includes('✅') ? 'rgba(204,255,0,0.1)' : 'rgba(255,100,100,0.1)', border: `1px solid ${mensaje.includes('✅') ? '#CCFF00' : '#f87171'}`, color: mensaje.includes('✅') ? '#CCFF00' : '#f87171', textAlign: 'center', fontSize: '13px', fontWeight: 600 }}>{mensaje}</p>
               )}
             </div>
+
             <div style={{ background: '#1a1a1a', borderRadius: '16px', padding: '30px', border: '1px solid #374151' }}>
               <h3 style={{ fontFamily: 'var(--font-titulos)', fontWeight: 900, fontSize: '16px', color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '20px' }}>📋 Clases actuales</h3>
               {clases.length === 0 && <p style={{ color: '#9ca3af', fontSize: '14px' }}>No hay clases creadas.</p>}
               {clases.map(clase => (
-                <div key={clase.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', marginBottom: '10px', background: '#111111', borderRadius: '12px', border: '1px solid #374151', flexWrap: 'wrap', gap: '10px' }}>
-                  <div>
-                    <p style={{ margin: '0 0 4px', fontWeight: 700, color: '#FFFFFF', fontSize: '14px', fontFamily: 'var(--font-titulos)', textTransform: 'uppercase' }}>{clase.nombre}</p>
-                    <p style={{ margin: 0, fontSize: '12px', color: '#9ca3af' }}>👤 {clase.instructor} · 🕐 {new Date(clase.fecha_hora).toLocaleString('es-EC')} · 👥 {clase.capacidad_max} cupos</p>
+                <div key={clase.id} style={{ padding: '16px', marginBottom: '10px', background: '#111111', borderRadius: '12px', border: '1px solid #374151' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                    <div>
+                      <p style={{ margin: '0 0 4px', fontWeight: 700, color: '#FFFFFF', fontSize: '14px', fontFamily: 'var(--font-titulos)', textTransform: 'uppercase' }}>{clase.nombre}</p>
+                      <p style={{ margin: 0, fontSize: '12px', color: '#9ca3af' }}>
+                        👤 {clase.instructor} · 🕐 {new Date(clase.fecha_hora).toLocaleString('es-EC')} · 👥 {clase.capacidad_max} cupos
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button onClick={() => verUsuariosClase(clase)} style={{ padding: '8px 16px', background: 'rgba(204,255,0,0.1)', color: '#CCFF00', border: '1.5px solid #CCFF00', borderRadius: '8px', fontFamily: 'var(--font-titulos)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', cursor: 'pointer' }}>👥 Ver usuarios</button>
+                      <button onClick={() => eliminarClase(clase.id)} style={{ padding: '8px 16px', background: 'transparent', color: '#f87171', border: '1.5px solid #f87171', borderRadius: '8px', fontFamily: 'var(--font-titulos)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', cursor: 'pointer' }}>🗑️ Eliminar</button>
+                    </div>
                   </div>
-                  <button onClick={() => eliminarClase(clase.id)} style={{ padding: '8px 16px', background: 'transparent', color: '#f87171', border: '1.5px solid #f87171', borderRadius: '8px', fontFamily: 'var(--font-titulos)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase' }}>🗑️ Eliminar</button>
                 </div>
               ))}
             </div>
+
+            {/* Modal usuarios */}
+            {claseDetalle && (
+              <div style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                <div style={{ background: '#1a1a1a', borderRadius: '20px', border: '1px solid #374151', padding: '30px', width: '100%', maxWidth: '500px', maxHeight: '80vh', overflowY: 'auto' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+                    <div>
+                      <h3 style={{ fontFamily: 'var(--font-titulos)', fontWeight: 900, fontSize: '18px', color: '#CCFF00', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 6px' }}>{claseDetalle.nombre}</h3>
+                      <p style={{ margin: 0, color: '#9ca3af', fontSize: '13px' }}>👤 {claseDetalle.instructor} · 🕐 {new Date(claseDetalle.fecha_hora).toLocaleString('es-EC')}</p>
+                    </div>
+                    <button onClick={() => { setClaseDetalle(null); setUsuariosClase([]) }} style={{ background: 'transparent', border: '1px solid #374151', borderRadius: '8px', padding: '6px 12px', color: '#9ca3af', cursor: 'pointer', fontSize: '16px' }}>✕</button>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+                    <div style={{ background: '#111111', borderRadius: '12px', padding: '16px', textAlign: 'center', border: '1px solid #374151' }}>
+                      <p style={{ margin: '0 0 4px', color: '#9ca3af', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'var(--font-titulos)' }}>Inscritos</p>
+                      <p style={{ margin: 0, fontSize: '28px', fontWeight: 900, color: '#CCFF00', fontFamily: 'var(--font-titulos)' }}>{usuariosClase.length}</p>
+                    </div>
+                    <div style={{ background: '#111111', borderRadius: '12px', padding: '16px', textAlign: 'center', border: '1px solid #374151' }}>
+                      <p style={{ margin: '0 0 4px', color: '#9ca3af', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'var(--font-titulos)' }}>Cupos libres</p>
+                      <p style={{ margin: 0, fontSize: '28px', fontWeight: 900, color: claseDetalle.capacidad_max - usuariosClase.length <= 0 ? '#f87171' : '#CCFF00', fontFamily: 'var(--font-titulos)' }}>
+                        {Math.max(0, claseDetalle.capacidad_max - usuariosClase.length)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: '20px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <span style={{ color: '#9ca3af', fontSize: '12px' }}>Ocupación</span>
+                      <span style={{ color: '#CCFF00', fontSize: '12px', fontWeight: 700 }}>{Math.round((usuariosClase.length / claseDetalle.capacidad_max) * 100)}%</span>
+                    </div>
+                    <div style={{ background: '#374151', borderRadius: '4px', height: '6px' }}>
+                      <div style={{ height: '6px', borderRadius: '4px', width: `${Math.min(100, (usuariosClase.length / claseDetalle.capacidad_max) * 100)}%`, background: usuariosClase.length >= claseDetalle.capacidad_max ? '#f87171' : '#CCFF00', transition: 'width 0.3s' }} />
+                    </div>
+                  </div>
+
+                  <h4 style={{ fontFamily: 'var(--font-titulos)', fontWeight: 900, fontSize: '13px', color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>Usuarios inscritos</h4>
+                  {cargandoUsuarios && <p style={{ color: '#9ca3af', fontSize: '14px' }}>Cargando...</p>}
+                  {!cargandoUsuarios && usuariosClase.length === 0 && (
+                    <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                      <div style={{ fontSize: '32px', marginBottom: '8px' }}>👻</div>
+                      <p style={{ color: '#9ca3af', fontSize: '14px' }}>Nadie inscrito aún</p>
+                    </div>
+                  )}
+                  {usuariosClase.map((reserva, i) => (
+                    <div key={reserva.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: '#111111', borderRadius: '10px', marginBottom: '8px', border: '1px solid #374151' }}>
+                      <div style={{ background: '#CCFF00', borderRadius: '50%', width: '36px', height: '36px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-titulos)', fontWeight: 900, fontSize: '14px', color: '#111111' }}>{i + 1}</div>
+                      <div>
+                        <p style={{ margin: '0 0 3px', color: '#FFFFFF', fontSize: '13px', fontWeight: 600 }}>{reserva.email || 'Usuario'}</p>
+                        <p style={{ margin: 0, color: '#9ca3af', fontSize: '11px' }}>Reservó el {new Date(reserva.fecha_reserva).toLocaleDateString('es-EC')}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         )}
 
