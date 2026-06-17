@@ -1,6 +1,6 @@
 {
-  "name": "Gimnasio App",
-  "short_name": "Gimnasio",
+  "name": "Level Up Gym & Fitness",
+  "short_name": "Level Up",
   "description": "Reserva tus clases y gestiona tu gimnasio",
   "start_url": "/",
   "display": "standalone",
