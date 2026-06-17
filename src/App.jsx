@@ -143,7 +143,7 @@ export default function App() {
               fontFamily: 'var(--font-titulos)', fontWeight: 900,
               fontSize: '16px', color: '#FFFFFF',
               textTransform: 'uppercase', letterSpacing: '2px'
-            }}>Gimnasio App</span>
+            }}>Level-Up</span>
           </div>
 
           {/* Botones desktop */}
