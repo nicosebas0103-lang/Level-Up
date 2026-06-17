@@ -52,7 +52,7 @@ export default function Login({ onLogin }) {
             textTransform: 'uppercase',
             letterSpacing: '2px',
             margin: '0 0 8px'
-          }}>Gimnasio App</h1>
+          }}>Level-Up</h1>
           <p style={{ color: '#CCFF00', fontSize: '13px', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}>
             Reserva tu clase favorita
           </p>
